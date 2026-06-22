@@ -1,12 +1,11 @@
-
 # Deploy Backend Golang + PostgreSQL
 
-Project ini mendemonstrasikan implementasi alur kerja **CI/CD** yang efisien untuk aplikasi backend berbasis **Golang** dan **PostgreSQL**. Tujuan utamanya adalah menciptakan sistem deployment yang otomatis, konsisten, dan mudah dikelola sesuai standar industri modern tahun 2026.
+Project ini mendemonstrasikan implementasi alur kerja **CI/CD** yang efisien dan modern untuk aplikasi backend berbasis **Golang** dan **PostgreSQL**. Tujuan utama dari sistem ini adalah membangun alur deployment yang sepenuhnya otomatis, konsisten, dan mudah dikelola sesuai dengan standar pengembangan perangkat lunak tahun 2026.
 
-Sistem ini dibangun menggunakan **Golang native** untuk REST API dan **PostgreSQL** sebagai basis datanya. Agar lingkungan pengembangan dan produksi selalu seragam serta terhindar dari isu kompatibilitas, seluruh layanan dikemas secara utuh menggunakan **Docker**.
+Aplikasi ini menggunakan **Golang native** untuk performa REST API yang optimal dan **PostgreSQL** sebagai basis data relasional. Untuk menjamin keseragaman lingkungan antara pengembangan dan produksi, seluruh komponen layanan dikemas menggunakan **Docker**, sehingga isu ketidakcocokan dependensi di server dapat dihindari sepenuhnya.
 
-Alur otomatisasi berjalan ketika kode di-push ke GitHub. **GitHub Actions** akan secara otomatis mem-build aplikasi, menyusun Docker Image, lalu mengunggahnya ke **GitHub Container Registry (GHCR)**. Tahapan ini memastikan selalu ada versi aplikasi terbaru yang siap dirilis ke server tanpa proses manual.
+Sistem otomatisasi ini terintegrasi langsung dengan **GitHub Actions**. Setiap perubahan kode yang di-*push* ke *branch* utama akan memicu proses *build* Docker Image secara otomatis. Image yang telah berhasil disusun kemudian dikirim (*push*) ke **GitHub Container Registry (GHCR)** sebagai penyimpanan pusat yang aman dan terdistribusi.
 
-Pada sisi server, deployment dikendalikan menggunakan **Docker Compose**. VPS tidak dibebani tugas komputasi untuk mem-build kode, melainkan hanya menarik (*pull*) image terbaru dari GHCR melalui **Watchtower**. Sistem ini memungkinkan aplikasi di server untuk memperbarui dirinya sendiri secara otomatis dan stabil setiap kali ada perubahan kode terbaru.
+Proses deployment pada sisi VPS kini jauh lebih efisien dengan dukungan **GitHub Self-Hosted Runner**. Setelah proses *build* di GitHub selesai, *runner* akan secara otomatis menerima instruksi untuk memperbarui container di server secara instan. Dengan arsitektur ini, VPS tidak lagi dibebani proses kompilasi kode, melainkan hanya menjalankan layanan terbaru yang telah dipersiapkan.
 
-Arsitektur ini dirancang untuk memberikan efisiensi tinggi, isolasi lingkungan yang aman, dan proses pembaruan yang otomatis, menjadikannya fondasi yang realistis untuk aplikasi backend *production-ready*.
+Arsitektur ini memberikan efisiensi sumber daya yang tinggi, isolasi lingkungan yang aman, serta pembaruan aplikasi yang cepat tanpa intervensi manual. Implementasi ini menjadi fondasi yang sangat stabil, skalabel, dan *production-ready* untuk pengembangan backend masa kini.
