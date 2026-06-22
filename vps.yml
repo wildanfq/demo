@@ -16,6 +16,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
   db:
     image: postgres:17-alpine
     container_name: task-db
@@ -34,13 +35,5 @@ services:
       timeout: 5s
       retries: 3
 
-  watchtower:
-    image: containrrr/watchtower
-    container_name: watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /home/ubuntu/.docker/config.json:/config.json:ro
-    command: --interval 60 --cleanup
 volumes:
   pgdata:
