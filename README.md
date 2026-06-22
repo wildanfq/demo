@@ -1,43 +1,61 @@
-# CI/CD Pipeline for Golang & PostgreSQL Backend
+# CI/CD Pipeline Backend Golang & PostgreSQL
 
-Project ini menerapkan sistem **CI/CD modern** untuk backend berbasis **Golang** dan **PostgreSQL** dengan tujuan menciptakan alur deployment yang sepenuhnya otomatis, konsisten, dan siap produksi. Arsitektur ini dirancang untuk mengurangi intervensi manual, meningkatkan stabilitas deployment, serta memastikan setiap perubahan kode dapat langsung masuk ke lingkungan server secara aman dan terkontrol sesuai standar pengembangan sistem modern.
+Arsitektur CI/CD ini dirancang untuk backend berbasis Golang dan PostgreSQL dengan tujuan menciptakan proses deployment yang otomatis, konsisten, dan siap production. Seluruh alur pipeline dibuat untuk menghilangkan proses manual, meningkatkan stabilitas rilis, serta memastikan setiap perubahan kode dapat langsung masuk ke server melalui mekanisme yang terkontrol dan aman.
 
-Backend dibangun menggunakan **Golang native** untuk memastikan performa API tetap ringan, cepat, dan efisien dalam menangani request. Sementara itu, **PostgreSQL** digunakan sebagai database utama untuk menjamin integritas data dan dukungan transaksi yang kuat. Seluruh komponen aplikasi dikemas menggunakan **Docker**, sehingga lingkungan development dan production selalu konsisten dan tidak bergantung pada konfigurasi sistem operasi server.
+Backend menggunakan Golang untuk memastikan performa API tetap cepat, ringan, dan efisien. PostgreSQL digunakan sebagai database utama karena stabilitas, integritas data, dan dukungan transaksi yang kuat. Seluruh aplikasi dikemas menggunakan Docker agar environment development dan production tetap konsisten dan tidak bergantung pada konfigurasi server.
 
-Proses CI/CD diintegrasikan dengan **GitHub Actions**, di mana setiap perubahan yang di-*push* ke branch utama akan secara otomatis memicu proses build Docker Image. Image yang dihasilkan kemudian dipublikasikan ke **GitHub Container Registry (GHCR)** sebagai pusat distribusi image yang terstandarisasi. Dengan mekanisme ini, proses build tidak lagi dilakukan di server produksi, sehingga beban komputasi sepenuhnya dipindahkan ke pipeline CI.
+Proses CI/CD dijalankan menggunakan GitHub Actions yang akan memicu build otomatis setiap kali ada perubahan pada branch utama. Hasil build berupa Docker Image kemudian dipublikasikan ke GitHub Container Registry (GHCR). Dengan pendekatan ini, server produksi tidak lagi melakukan proses build sehingga seluruh beban komputasi dipindahkan ke pipeline CI.
 
-Tahap deployment dijalankan menggunakan **GitHub Self-Hosted Runner** yang terhubung langsung ke VPS. Runner ini bertugas mengeksekusi instruksi deployment setelah proses build selesai, termasuk menarik image terbaru dan melakukan update container secara otomatis. Pendekatan ini membuat VPS hanya berfungsi sebagai runtime environment, bukan sebagai tempat kompilasi, sehingga lebih ringan, stabil, dan aman.
+Proses deployment dijalankan melalui GitHub Self-Hosted Runner yang terpasang langsung di VPS. Runner ini bertugas menarik image terbaru dari registry dan melakukan update container secara otomatis. Dengan model ini, VPS hanya berfungsi sebagai runtime environment sehingga lebih ringan, stabil, dan aman.
 
-Secara keseluruhan, arsitektur ini menghasilkan sistem deployment yang cepat, terotomatisasi, dan mudah di-scale. Kombinasi Golang, PostgreSQL, Docker, GitHub Actions, dan Self-Hosted Runner menjadikan pipeline ini siap digunakan untuk kebutuhan production-grade system dengan tingkat efisiensi dan reliability yang tinggi.
+Secara keseluruhan, kombinasi Golang, PostgreSQL, Docker, GitHub Actions, dan Self-Hosted Runner menghasilkan sistem deployment yang otomatis, cepat, dan mudah di-scale dengan reliability tinggi untuk production system.
+
+---
 
 # Storage, Backup & Disaster Recovery Architecture
 
-## 1. Arsitektur Infrastruktur Multi-Server
+Arsitektur ini menggunakan dua server yang dipisahkan antara production dan backup. VPS utama berfungsi sebagai production server yang menjalankan seluruh aplikasi, termasuk backend Golang, PostgreSQL, dan Docker Compose. Semua traffic dan proses utama berjalan di server ini untuk menjaga performa dan latency tetap optimal.
 
-Sistem ini menggunakan arsitektur dua server untuk memisahkan environment produksi dan backup secara ketat. VPS utama (Google Cloud) berfungsi sebagai production server yang menjalankan seluruh komponen aplikasi, termasuk backend Golang, database PostgreSQL, serta seluruh stack Docker Compose. Semua proses bisnis, request pengguna, dan pemrosesan data berjalan di server ini untuk menjaga performa, latency rendah, dan stabilitas layanan.
+Server kedua berfungsi sebagai backup server yang hanya digunakan untuk menyimpan seluruh data cadangan. Semua backup dari production direplikasi ke server ini sebagai perlindungan terhadap kegagalan total seperti crash, corruption, atau kehilangan akses server.
 
-Server kedua adalah VPS Backup yang tidak menjalankan aplikasi produksi sama sekali, melainkan difokuskan sebagai storage isolasi untuk seluruh data cadangan. Server ini menerima replikasi dari server utama dan menjadi lapisan terakhir perlindungan data jika terjadi kegagalan total pada production server. Dengan pemisahan ini, sistem tetap memiliki mekanisme pemulihan meskipun server utama mengalami crash, corruption, atau kehilangan akses.
+## Storage Layer (SeaweedFS)
 
-## 2. Sistem Penyimpanan File (Storage Layer)
+File storage menggunakan SeaweedFS sebagai object storage berbasis S3-compatible API. Semua file seperti gambar, dokumen, dan media dikirim langsung dari backend ke SeaweedFS sehingga database tidak terbebani oleh data file.
 
-Sistem penyimpanan file menggunakan **SeaweedFS** sebagai object storage berbasis S3-compatible API, menggantikan penyimpanan lokal tradisional. Semua file seperti gambar, dokumen, dan media yang diunggah pengguna dikirim langsung dari backend Golang ke SeaweedFS melalui API, sehingga proses penyimpanan tidak membebani database PostgreSQL.
+SeaweedFS berjalan dalam container Docker dengan persistent volume untuk menjaga data tetap aman. Sistem ini mendukung replikasi dan scaling, sehingga cocok untuk menangani file dalam jumlah besar secara efisien.
 
-SeaweedFS dijalankan di dalam Docker dan menggunakan Docker Volume yang terisolasi untuk menyimpan data secara persisten. Arsitektur ini membuat sistem lebih fleksibel, mudah dipindahkan, serta mendukung skala besar untuk menangani jutaan file kecil secara efisien. Selain itu, SeaweedFS juga mendukung replikasi dan ekspor data yang memudahkan proses backup ke server lain.
+## Database Backup (PostgreSQL + Databasus)
 
-## 3. Backup Database PostgreSQL
+Backup PostgreSQL dikelola menggunakan Databasus yang berjalan di dalam container Docker. Sistem ini melakukan full backup secara terjadwal serta menyimpan WAL (Write-Ahead Logging) untuk mendukung Point-in-Time Recovery (PITR), sehingga database bisa dipulihkan ke kondisi waktu tertentu secara presisi.
 
-Backup database PostgreSQL dikelola oleh **Databasus** yang berjalan sebagai container khusus di dalam ekosistem Docker. Tool ini secara otomatis menjalankan full backup terjadwal serta mengelola WAL (Write-Ahead Logging) untuk mendukung Point-in-Time Recovery (PITR), sehingga database dapat dipulihkan ke kondisi waktu yang sangat spesifik.
+Backup dikirim otomatis ke server backup tanpa mengganggu performa production. Sistem ini juga dilengkapi monitoring dan notifikasi real-time melalui Discord atau Telegram untuk setiap status backup.
 
-Seluruh hasil backup dikompresi dan dikirim secara otomatis ke VPS Backup atau storage eksternal tanpa mengganggu performa server utama. Selain itu, Databasus dilengkapi sistem monitoring yang memberikan notifikasi real-time melalui Discord atau Telegram ketika proses backup berhasil maupun gagal, sehingga kondisi database selalu terpantau secara aktif.
+## System Backup (Restic + Rclone)
 
-## 4. Backup Sistem dan Konfigurasi (System Backup)
+Backup sistem mencakup seluruh konfigurasi penting seperti file environment, docker-compose, konfigurasi aplikasi, source cadangan, dan volume SeaweedFS.
 
-Backup sistem mencakup seluruh komponen penting di luar database, seperti file `.env`, konfigurasi `docker-compose.yml`, source cadangan, serta volume SeaweedFS. Proses ini ditangani oleh **Restic** yang berjalan secara otomatis melalui cron job. Restic menggunakan enkripsi end-to-end dan deduplikasi data, sehingga hanya perubahan yang benar-benar terjadi yang akan diproses, membuat backup lebih efisien dan aman.
+Restic digunakan untuk melakukan backup terenkripsi dengan deduplikasi data agar lebih efisien. Proses ini berjalan otomatis melalui cron job. Hasil backup kemudian dikirim ke server backup menggunakan Rclone sebagai transport layer.
 
-Setelah proses backup selesai, **Rclone** berfungsi sebagai layer transport untuk mengirim hasil backup Restic ke VPS Backup. Kombinasi Restic dan Rclone memastikan seluruh konfigurasi sistem, environment Docker, dan data storage memiliki salinan lengkap di lokasi terpisah, sehingga sistem dapat direkonstruksi kapan saja dengan konsisten.
+Kombinasi Restic dan Rclone memastikan seluruh sistem dapat dipulihkan secara lengkap dan konsisten kapan saja.
 
-## 5. Prosedur Disaster Recovery
+## Disaster Recovery Procedure
 
-Ketika terjadi kegagalan total pada VPS utama, langkah pertama adalah menyiapkan VPS baru dan menginstal Docker serta Docker Compose sebagai fondasi environment. Setelah itu, seluruh data backup dari VPS Backup ditarik kembali menggunakan Rclone untuk memulihkan konfigurasi sistem, termasuk environment Docker dan volume SeaweedFS.
+Jika terjadi kegagalan total pada server utama, VPS baru akan disiapkan dengan Docker dan Docker Compose sebagai dasar environment. Setelah itu, semua data dari server backup dipulihkan menggunakan Rclone, termasuk konfigurasi sistem dan storage SeaweedFS.
 
-Tahap berikutnya adalah pemulihan database PostgreSQL menggunakan Databasus dengan mengembalikan full backup terakhir beserta WAL log untuk mencapai kondisi paling akhir sebelum kegagalan terjadi. Setelah database, storage, dan backend berhasil dipulihkan, sistem dijalankan kembali menggunakan Docker Compose. Ketika semua service sudah aktif dan saling terhubung, traffic kemudian dialihkan ke server baru, dan sistem kembali beroperasi normal tanpa kehilangan data yang signifikan.
+Database kemudian dipulihkan menggunakan Databasus dengan full backup terakhir dan WAL logs untuk mengembalikan kondisi paling terbaru sebelum kegagalan. Setelah semua service aktif kembali, sistem dijalankan menggunakan Docker Compose dan traffic dialihkan ke server baru.
+
+---
+
+# Monitoring & Observability
+
+Sistem monitoring dirancang untuk memberikan visibilitas penuh terhadap seluruh infrastruktur, mulai dari server, container, hingga aplikasi. Tujuannya adalah mendeteksi masalah lebih awal sebelum berdampak ke pengguna.
+
+Prometheus digunakan untuk mengumpulkan metrics dari VPS, Docker, database, dan backend Golang. Data yang dikumpulkan mencakup CPU, RAM, disk usage, latency API, throughput, dan status service.
+
+Grafana digunakan untuk visualisasi data dari Prometheus dalam bentuk dashboard yang mudah dibaca, sehingga kondisi sistem dapat dipantau secara real-time dan historis.
+
+Loki digunakan sebagai sistem logging terpusat untuk mengumpulkan log dari seluruh service. Dengan ini, proses debugging menjadi lebih cepat karena semua log berada dalam satu sistem terstruktur.
+
+Alerting ditangani oleh Alertmanager yang terhubung dengan Prometheus. Setiap kondisi kritis akan dikirimkan secara real-time ke Telegram dan Discord agar langsung diketahui tanpa perlu pengecekan manual.
+
+Secara keseluruhan, kombinasi Prometheus, Grafana, Loki, dan Alertmanager membentuk sistem observability yang lengkap, terintegrasi, dan siap untuk production dengan kemampuan monitoring, analisis, dan respons yang cepat.
