@@ -1,0 +1,46 @@
+networks:
+  app-network:
+    driver: bridge
+
+services:
+  app:
+    image: ghcr.io/wildanfq/task:latest
+    container_name: task-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgres://postgres:password@db:5432/tasks?sslmode=disable
+    networks:
+      - app-network
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    image: postgres:17-alpine
+    container_name: task-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: tasks
+    networks:
+      - app-network
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tasks"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/ubuntu/.docker/config.json:/config.json:ro
+    command: --interval 60 --cleanup
+volumes:
+  pgdata:
